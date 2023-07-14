@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>InteractiveLineChart</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <h5 style="text-align: center; color:red">Please select Time between 2020/01/22 and 2020/07/27</h5>
+    <h3 style="text-align: center;">During the time selected, Which day has the highest New Cases?</h3>
+    <form style="text-align: center;">
+        <label>Choose start time in 2020: </label>
+        <input id="startselect" type="Date" value="2020-01-22" />
+        <br>
+        <label>Choose end time in 2020: </label>
+        <input id="endselect" type="Date" value="2020-02-27" />
+        <br><br>
+        <input type="button" value="GENERATE" onclick="generate()">
+    </form>
+    <div class="lineChart-container">
+        <svg></svg>
+    </div>
+</head>
+
+<body>
+    <script>
+        // set the dimensions and margins of the line chart
+        const width = 800;
+        const height = 600;
+        const margin = {
+            top: 30,
+            right: 50,
+            bottom: 50,
+            left: 70
+        };
+
+        // create the SVG element for the line chart
+        const svg = d3.select("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        function generate() {
+            svg.selectAll('*').remove();
+
+            // read the data from the csv file
+            d3.csv("day_wise.csv").then(function(data) {
+                // parse the dates in the Date column
+                const parseTime = d3.timeParse("%Y-%m-%d");
+                data.forEach(function(d) {
+                    d.Date = parseTime(d.Date);
+                });
+
+                // filter the data for a specific time period
+                const startDate = parseTime(document.getElementById("startselect").value);
+                const endDate = parseTime(document.getElementById("endselect").value);
+                if (startDate >= endDate) {
+                    alert("Invalid input! Please select endTime > startTime")
+                }
+                if ((startDate < parseTime("2020-01-22")) || (startDate > parseTime("2020-07-27"))) {
+                    alert("Invalid input! Please select startTime between 2020/01/22 and 2020/07/27")
+                }
+                if ((endDate < parseTime("2020-01-22")) || (endDate > parseTime("2020-07-27"))) {
+                    alert("Invalid input! Please select endTime between 2020/01/22 and 2020/07/27")
+                }
+
+                const filteredData = data.filter(function(d) {
+                    return d.Date >= startDate && d.Date <= endDate;
+                });
+
+                // create scales for the x and y axes
+                const xScale = d3.scaleTime()
+                    .domain(d3.extent(filteredData, d => d.Date))
+                    .range([margin.left, width - margin.right]);
+                const yScale = d3.scaleLinear()
+                    .domain([0, d3.max(filteredData, d => Math.max(+d['New cases']))])
+                    .range([height - margin.bottom, margin.top]);
+
+                // create axes for the x and y axes
+                const xAxis = d3.axisBottom(xScale).ticks(5);
+                const yAxis = d3.axisLeft(yScale);
+
+                // create the line function for new confirmed cases
+                const confirmedLine = d3.line()
+                    .x(d => xScale(d.Date))
+                    .y(d => yScale(+d['New cases']));
+
+                // create the line function for average confirmed cases
+                const avgConfirmed = d3.mean(filteredData, d => d['New cases']);
+                const avgLine = d3.line()
+                    .x(d => xScale(d.Date))
+                    .y(d => yScale(avgConfirmed));
+
+                // add the x and y axes to the chart
+                svg.append("g")
+                    .attr("transform", "translate(0," + (height - margin.bottom) + ")")
+                    .call(xAxis);
+                svg.append("g")
+                    .attr("transform", "translate(" + margin.left + ",0)")
+                    .call(yAxis);
+
+                // add the new confirmed cases line to the chart
+                svg.append("path")
+                    .datum(filteredData)
+                    .attr("fill", "none")
+                    .attr("stroke", "blue")
+                    .attr("stroke-width", 2)
+                    .attr("d", confirmedLine);
+
+                // add the average line to the chart
+                svg.append("path")
+                    .datum(filteredData)
+                    .attr("class", "avg-line")
+                    .attr("d", avgLine);
+
+                console.log(filteredData);
+
+                // add data point
+                svg.selectAll(".data-point")
+                    .data(filteredData)
+                    .enter()
+                    .append("circle")
+                    .attr("class", "data-point")
+                    .attr("cx", d => xScale(d.Date))
+                    .attr("cy", d => yScale(d['New cases']))
+                    .attr("r", 3)
+                    .style("fill", "red")
+                    .on("mouseover", function(d, i) {
+                        const [x, y] = [xScale(i.Date), yScale(i['New cases'])];
+                        const dateFormatter = d3.timeFormat("%m/%d");
+                        const value = `${dateFormatter(i.Date)}: ${i['New cases']}`;
+                        // mouseover to see the coordinary
+                        svg.append("text")
+                            .attr("class", "data-label")
+                            .attr("x", x - 50)
+                            .attr("y", y - 10)
+                            .text(value);
+                    })
+                    .on("mouseout", (d) => // remove the label
+                        svg.selectAll(".data-label").remove());
+
+                //add text for avgLine
+                svg.append("text")
+                    .attr("class", "label")
+                    .attr("x", xScale(filteredData[filteredData.length - 1].Date) - 120)
+                    .attr("y", yScale(avgConfirmed) - 20)
+                    .text("Average = " + parseInt(avgConfirmed))
+                    .attr("fill", 'red');
+
+            });
+        }
+    </script>
+
+    <style>
+        .avg-line {
+            stroke: orangered;
+            stroke-dasharray: 10, 5;
+        }
+        
+        .lineChart-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</body>

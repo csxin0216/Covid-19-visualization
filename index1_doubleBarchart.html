@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>MultiBarChart</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <h3>By 2020, Top 10 countries of Comfirmed cases, and their Death cases & Recovered cases</h3>
+
+</head>
+
+<body>
+    <script>
+        // read the data from csv file
+        d3.csv("country_wise_latest.csv", (d) => {
+            // filter the data that we need
+            return {
+                country: d['Country/Region'],
+                confirm: +d['Confirmed'],
+                death: +d['Deaths'],
+                recover: +d['Recovered']
+            };
+        }).then((data) => {
+            // sort by "Confirmed"
+            data.sort((a, b) => d3.descending(a.confirm, b.confirm));
+
+            // Top 10 countries of Confirmed
+            const top10Data = data.slice(0, 10);
+
+            // Define svg
+            const margin = {
+                top: -40,
+                right: 50,
+                bottom: 50,
+                left: 50
+            };
+
+            const width = 800;
+            const height = 600;
+
+            const svg = d3
+                .select("body")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .append("g")
+                .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+            // Define xScale and yScale 
+            const xScale = d3.scaleBand()
+                .domain(top10Data.map((d) => d.country))
+                .range([50, width - 50])
+                .padding(0.2);
+
+            const yScale = d3.scaleLinear()
+                .domain([0, d3.max(top10Data, (d) => d.confirm)])
+                .range([height - 50, 50]);
+
+            // Add axis
+            svg.append("g")
+                .attr("transform", "translate(0," + (height - 50) + ")")
+                .call(d3.axisBottom(xScale));
+
+            svg.append("g")
+                .attr("transform", "translate(50,0)")
+                .call(d3.axisLeft(yScale));
+
+            // Add Bar chart for Confirmed
+            const rects = svg.selectAll("rect")
+                .data(top10Data)
+                .enter()
+                .append("rect")
+                .attr("x", (d) => xScale(d.country))
+                .attr("y", (d) => yScale(d.confirm))
+                .attr("width", xScale.bandwidth() / 3)
+                .attr("height", (d) => height - 50 - yScale(d.confirm))
+                .attr("fill", "steelblue");
+
+
+            // Add Bar chart for Deaths
+            svg.selectAll("death-rect")
+                .data(top10Data)
+                .enter()
+                .append("rect")
+                .attr("x", (d) => xScale(d.country) + xScale.bandwidth() / 3)
+                .attr("y", (d) => yScale(d.death))
+                .attr("width", xScale.bandwidth() / 3)
+                .attr("height", (d) => height - 50 - yScale(d.death))
+                .attr("fill", (d) => d.death === 0 ? "none" : "red");
+
+            // Add Bar chart for Recovered
+            svg.selectAll("recover-rect")
+                .data(top10Data)
+                .enter()
+                .append("rect")
+                .attr("x", (d) => xScale(d.country) + xScale.bandwidth() / 3 * 2)
+                .attr("y", (d) => yScale(d.recover))
+                .attr("width", xScale.bandwidth() / 3)
+                .attr("height", (d) => height - 50 - yScale(d.recover))
+                .attr("fill", (d) => d.recover === 0 ? "none" : "green");
+
+            // Add labels
+            svg.selectAll(".label")
+                .data(top10Data)
+                .enter()
+                .append("text")
+                .attr("class", "label")
+                .attr("x", (d) => xScale(d.country) - 3)
+                .attr("y", (d) => yScale(d.confirm) - 2)
+                .attr("font-size", 7)
+                .attr("fill", 'blue')
+                .text((d) => d.confirm);
+
+            svg.selectAll(".death-label")
+                .data(top10Data)
+                .enter()
+                .append("text")
+                .attr("class", "death-label")
+                .attr("x", (d) => xScale(d.country) - 3 + xScale.bandwidth() / 3)
+                .attr("y", (d) => yScale(d.death) - 2)
+                .attr("font-size", 7)
+                .attr("fill", 'red')
+                .text((d) => d.death);
+
+            svg.selectAll(".recover-label")
+                .data(top10Data)
+                .enter()
+                .append("text")
+                .attr("class", "recover-label")
+                .attr("x", (d) => xScale(d.country) - 3 + xScale.bandwidth() / 3 * 2)
+                .attr("y", (d) => yScale(d.recover) - 2)
+                .attr("font-size", 7)
+                .attr("fill", 'green')
+                .text((d) => d.recover);
+
+            // draw legend
+            var legend_name = ["Confirmed", "Deaths", "Recovered"]
+            var legend_color = ["steelblue", "red", "green"]
+            var legend = d3.select('svg').selectAll(".legend")
+                .data(legend_name)
+                .enter().append("g")
+                .attr("class", "legend")
+                .attr("transform", function(d, i) {
+                    return "translate(" + (0.8 * width) + "," + (i * 30 + 60) + ")";
+                });
+
+            // draw legend colored rectangles
+            legend.append("rect")
+                .data(legend_name)
+                .attr("x", 0)
+                .attr("y", 0)
+                .attr("width", 30)
+                .attr("height", 20)
+                .style("fill", (d, i) => legend_color[i]);
+
+            // draw legend text
+            legend.append("text")
+                .data(legend_name)
+                .attr('class', 'legend_text')
+                .attr("x", 40)
+                .attr("y", 9)
+                .attr("dy", ".5em")
+                .style("text-anchor", "start")
+                .text(function(d, i) {
+                    return legend_name[i];
+                })
+                .attr("fill", (d, i) => legend_color[i]);
+
+        });
+    </script>
+</body>
+
+</html>
